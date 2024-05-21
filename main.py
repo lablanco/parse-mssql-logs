@@ -1,4 +1,9 @@
 import pandas as pd
+import timeit
+
+print("Start------")
+
+start = timeit.default_timer()
 
 # Define a function to read the log data from a text file and parse it into a list of dictionaries
 def parse_log(file_path, encoding='utf-16'):
@@ -17,7 +22,7 @@ def parse_log(file_path, encoding='utf-16'):
     return log_data
 
 # Path to the log file
-log_file_path = r'c:\Users\lb433\OneDrive\Documentos\mio\biox\08. MSSQL Log\LOGAUDITS_EVENTOSMODIFICACION.csv'  # Adjust the file path as needed
+log_file_path = 'logeventosSQL.csv'  # Adjust the file path as needed
 
 # Try different encodings if UTF-8 fails
 encodings = ['utf-8', 'utf-16', 'latin-1']
@@ -33,8 +38,14 @@ for enc in encodings:
 if log_data is None:
     raise ValueError("Failed to read the log file with known encodings.")
 
+print('\n')
+
 # Convert the log data list of dictionaries to a pandas DataFrame
 log_df = pd.DataFrame(log_data)
+
+# Print total record count
+total_records = len(log_df)
+print(f"File has: {total_records} Records")
 
 # Select specific columns and filter rows based on action_id and class_type
 filtered_df = log_df[['event_time', 'action_id', 'session_server_principal_name', 'class_type','server_instance_name', 'database_name', 'schema_name', 'object_name', 'statement']]
@@ -55,6 +66,14 @@ filtered_df.rename(columns={
 
 # Save the filtered DataFrame to a CSV file (optional)
 filtered_df.to_csv('filtered_log_data.csv', index=False)
+
+# Print total record count
+total_records = len(filtered_df)
+print(f"Filter has:  {total_records} Records")
+
+end = timeit.default_timer()
+
+print(f"Time to retrieve answer: {end - start}")
 
 
 
