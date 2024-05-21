@@ -1,28 +1,39 @@
 import pandas as pd
-import timeit
+from datetime import datetime
+from rich.progress import Progress, SpinnerColumn, TextColumn
+
 
 print("Start------")
+print(f"Fecha comienzo de la ejecución del script: {datetime.now()}")
 
-start = timeit.default_timer()
 
 # Define a function to read the log data from a text file and parse it into a list of dictionaries
 def parse_log(file_path, encoding='utf-16'):
-    log_data = []
-    with open(file_path, 'r', encoding=encoding) as file:
-        record = {}
-        for line in file:
-            if ':' in line:
-                key, value = line.strip().split(':', 1)
-                record[key.strip()] = value.strip()
-            elif record:  # New record or end of file
-                log_data.append(record)
-                record = {}
-        if record:  # Append the last record if any
-            log_data.append(record)
+    with Progress(
+                    SpinnerColumn(),
+                    TextColumn("[progress.description]{task.description}"),
+                    transient=False,
+            ) as progress:
+                progress.add_task(description="Leyendo MSSQL Log .csv", total=100)
+                log_data = []
+                with open(file_path, 'r', encoding=encoding) as file:
+                    record = {}
+                    for line in file:
+                        if ':' in line:
+                            key, value = line.strip().split(':', 1)
+                            record[key.strip()] = value.strip()
+                        elif record:  # New record or end of file
+                            log_data.append(record)
+                            record = {}
+                    if record:  # Append the last record if any
+                        log_data.append(record)
     return log_data
 
+
 # Path to the log file
-log_file_path = 'logeventosSQL.csv'  # Adjust the file path as needed
+log_file_path = 'LOGAUDITS_EVENTOSMODIFICACION.csv'  # Adjust the file path as needed
+
+print(f"Nombre del archivo: {log_file_path}")
 
 # Try different encodings if UTF-8 fails
 encodings = ['utf-8', 'utf-16', 'latin-1']
@@ -35,21 +46,28 @@ for enc in encodings:
     except UnicodeDecodeError:
         print(f"Failed to read with encoding {enc}, trying next...")
 
+
 if log_data is None:
     raise ValueError("Failed to read the log file with known encodings.")
-
-print('\n')
 
 # Convert the log data list of dictionaries to a pandas DataFrame
 log_df = pd.DataFrame(log_data)
 
 # Print total record count
 total_records = len(log_df)
-print(f"File has: {total_records} Records")
+print(f"El archivo contiene: {total_records} registros")
 
-# Select specific columns and filter rows based on action_id and class_type
-filtered_df = log_df[['event_time', 'action_id', 'session_server_principal_name', 'class_type','server_instance_name', 'database_name', 'schema_name', 'object_name', 'statement']]
-filtered_df = filtered_df[filtered_df['action_id'].str.contains('IN|DR|UP', na=False) & filtered_df['class_type'].str.contains('U', na=False)]
+print('\n')
+
+with Progress(
+                    SpinnerColumn(),
+                    TextColumn("[progress.description]{task.description}"),
+                    transient=False,
+            ) as progress:
+                progress.add_task(description="Creando Filtro..", total=100)
+                # Select specific columns and filter rows based on action_id and class_type
+                filtered_df = log_df[['event_time', 'action_id', 'session_server_principal_name', 'class_type','server_instance_name', 'database_name', 'schema_name', 'object_name', 'statement']]
+                filtered_df = filtered_df[filtered_df['action_id'].str.contains('UP|CR|AL|IN', na=False)]
 
 # Rename columns to match the SQL query output
 filtered_df.rename(columns={
@@ -69,12 +87,28 @@ filtered_df.to_csv('filtered_log_data.csv', index=False)
 
 # Print total record count
 total_records = len(filtered_df)
-print(f"Filter has:  {total_records} Records")
+print(f"El filtro [action_id contains 'UP|CR|AL|IN'] -> ejecutado tiene:  {total_records} Records")
 
-end = timeit.default_timer()
+with Progress(
+                    SpinnerColumn(),
+                    TextColumn("[progress.description]{task.description}"),
+                    transient=False,
+            ) as progress:
+                progress.add_task(description="Agrupando UserNames..", total=100)
+                print('\n'+ '---list of usernames--')
 
-print(f"Time to retrieve answer: {end - start}")
+                # Group by UserName
+                grouped_df = filtered_df.groupby('UserName')
+                for name, group in grouped_df:
+                    print(f"UserName: {name} | Total Records: {len(group)}")
 
+print('\n')
+
+print(f"Fecha Fin de la ejecución del script: {datetime.now()}")
+
+print('\n')
+
+print("----End")
 
 
 
